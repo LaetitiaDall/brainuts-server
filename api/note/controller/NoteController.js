@@ -3,6 +3,7 @@
 var mongoose = require('mongoose');
 var NoteModel = mongoose.model('Note');
 var NoteService = require('../service/NoteService');
+
 var NoteController = {};
 
 NoteController.listAll = function (req, res) {

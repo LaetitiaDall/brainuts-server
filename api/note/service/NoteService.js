@@ -3,6 +3,7 @@
 var mongoose = require('mongoose');
 var NoteModel = mongoose.model('Note');
 var helpers = require('../../utils/helpers');
+var TagService = require('../../tag/service/TagService');
 
 class NoteService {
 
@@ -14,6 +15,9 @@ class NoteService {
             user: user,
             creationDate: new Date(),
         });
+
+        TagService.createAllTags(content);
+
         return note.save(cb);
     };
 
