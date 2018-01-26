@@ -7,7 +7,7 @@ var helpers = require('../../utils/helpers');
 class TagService {
 
     create(name, color, cb) {
-        helpers.checkCallback(cb);
+        cb = helpers.checkCallback(cb);
 
         TagModel.findByName(name, function (err, tag) {
             if (err) {
@@ -31,6 +31,7 @@ class TagService {
         var hashtags = content.match(/#(\w+)/g);
         for (var tag in hashtags){
             if (hashtags.hasOwnProperty(tag)){
+                console.log("found tag",tag);
                 tag = tag.replace("#", '');
                 this.create(tag, helpers.intToRGB(helpers.hashCode(tag)));
             }
