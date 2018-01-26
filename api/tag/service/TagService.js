@@ -28,12 +28,13 @@ class TagService {
     };
 
     createAllTags(content) {
+        var self = this;
         var hashtags = content.match(/#(\w+)/g);
 
         hashtags.forEach(function (tag) {
             console.log("found tag", tag);
             tag = tag.replace("#", '');
-            this.create(tag, helpers.intToRGB(helpers.hashCode(tag)));
+            self.create(tag, helpers.intToRGB(helpers.hashCode(tag)));
         });
     }
 }
