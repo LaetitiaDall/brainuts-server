@@ -26,7 +26,7 @@ class NoteService {
             if(note){
                 note.remove(cb);
             }else{
-                cb(new Error("the note does not exists"));
+                cb(new Error("the note was already deleted"));
             }
 
         })
@@ -40,9 +40,13 @@ class NoteService {
                 return cb(err);
             }
 
-            console.log("found", note);
-            note.content=content;
-            note.save(cb);
+            if (note) {
+                console.log("found", note);
+                note.content = content;
+                note.save(cb);
+            }else{
+                cb(new Error("the note does not exists and can not be updated"));
+            }
 
         })
     }
