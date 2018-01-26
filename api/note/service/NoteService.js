@@ -43,6 +43,7 @@ class NoteService {
             if (note) {
                 console.log("found", note);
                 note.content = content;
+                note.date = new Date();
                 note.save(cb);
             }else{
                 cb(new Error("the note does not exists and can not be updated"));
