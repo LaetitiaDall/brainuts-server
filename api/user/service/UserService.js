@@ -63,7 +63,7 @@ class UserService {
                     return cb(new Error("wrong login"));
                 }
 
-            });
+            }).select('+token');
     }
 
 }

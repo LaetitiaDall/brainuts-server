@@ -2,10 +2,12 @@
 
 var mongoose = require('mongoose');
 var NoteModel = mongoose.model('Note');
+var helpers = require('../../utils/helpers');
 
 class NoteService {
 
     create(content, user, cb) {
+        console.log("creating", content, user);
         helpers.checkCallback(cb);
         var note = new NoteModel({
             content: content,
@@ -21,8 +23,7 @@ class NoteService {
             if (err){
                 return cb(err);
             }
-            note.content=content;
-            note.delete(cb);
+            note.remove(cb);
         })
 
     }
@@ -33,6 +34,8 @@ class NoteService {
             if (err){
                 return cb(err);
             }
+
+            console.log("found", note);
             note.content=content;
             note.save(cb);
 
