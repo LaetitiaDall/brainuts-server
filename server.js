@@ -1,6 +1,6 @@
 var express = require('express'),
     app = express(),
-    port = 22550,
+    port = 22551,
     mongoose = require('mongoose'),
     bodyParser = require('body-parser'),
     io = require('socket.io'),
