@@ -17,7 +17,7 @@ class UserService {
         var userData = {
             token : rand.generateKey(24),
             name : name,
-            password: passwordHash.generate('password')
+            password: passwordHash.generate(password)
         };
 
         UserModel.findOne({name: new RegExp(userData.name, "i")},
