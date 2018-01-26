@@ -27,18 +27,15 @@ class TagService {
 
     };
 
-    createAllTags(content){
+    createAllTags(content) {
         var hashtags = content.match(/#(\w+)/g);
-        for (var tag in hashtags){
-            if (hashtags.hasOwnProperty(tag)){
-                console.log("found tag",tag);
-                tag = tag.replace("#", '');
-                this.create(tag, helpers.intToRGB(helpers.hashCode(tag)));
-            }
-        }
+
+        hashtags.forEach(function (tag) {
+            console.log("found tag", tag);
+            tag = tag.replace("#", '');
+            this.create(tag, helpers.intToRGB(helpers.hashCode(tag)));
+        });
     }
-
-
 }
 
 module.exports = new TagService();
