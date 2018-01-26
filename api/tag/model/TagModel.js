@@ -17,7 +17,7 @@ var TagSchema = new Schema({
 
 class TagClass {
 
-    static findById(name, cb) {
+    static findByName(name, cb) {
         return this.findOne({'name': name}, cb);
     }
 
