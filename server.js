@@ -33,7 +33,7 @@ var UserModel = require('./api/user/model/UserModel'),
 
 
 var UserRoutes = require('./api/user/route/UserRoutes'),
-    TagRoutes = require('./api/user/route/TagRoutes'),
+    TagRoutes = require('./api/tag/route/TagRoutes'),
     NoteRoutes = require('./api/note/route/NoteRoutes');
     UserService = require('./api/user/service/UserService');
 
