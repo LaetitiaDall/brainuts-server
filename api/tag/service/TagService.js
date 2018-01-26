@@ -32,7 +32,7 @@ class TagService {
         for (var tag in hashtags){
             if (hashtags.hasOwnProperty(tag)){
                 tag = tag.replace("#", '');
-                this.create(name, helpers.intToRGB(helpers.hashCode(tag)));
+                this.create(tag, helpers.intToRGB(helpers.hashCode(tag)));
             }
         }
     }
