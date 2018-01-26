@@ -28,6 +28,7 @@ app.use(function (req, res, next) {
 });
 
 var UserModel = require('./api/user/model/UserModel'),
+    TagModel = require('./api/tag/model/TagModel'),
     NoteModel = require('./api/note/model/NoteModel');
 
 
