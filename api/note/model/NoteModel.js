@@ -8,7 +8,7 @@ var NoteSchema = new Schema({
         type: String,
     },
 
-    created: {
+    creationDate: {
         type: Date,
         default: Date.now
     },
@@ -17,15 +17,14 @@ var NoteSchema = new Schema({
 
 });
 
-
 class NoteClass {
 
-    static findByTag(tag) {
-        return this.find({'content': tag});
+    static findByTag(tag, cb) {
+        return this.find({'content': tag}, cb);
     }
 
-    static findById(id) {
-        return this.findOne({'_id': id});
+    static findById(id, cb) {
+        return this.findOne({'_id': id}, cb);
     }
 
 }

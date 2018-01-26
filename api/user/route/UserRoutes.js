@@ -8,6 +8,9 @@ var UserRoutes = function (app) {
     app.route('/me')
         .get(TokenService.ensureAuthorized, UserController.me);
 
+    app.route('/login')
+        .post(UserController.login);
+
 };
 
 module.exports = UserRoutes;

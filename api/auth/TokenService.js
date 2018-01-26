@@ -19,7 +19,7 @@ TokenService.ensureAuthorized = function (req, res, next) {
                 }
                 req.user = user;
                 next();
-            }).populate('room').select('+token');
+            }).select('+token');
     } else {
         return res.status(403).send({
             note: 'Unauthorized'

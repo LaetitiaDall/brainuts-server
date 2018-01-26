@@ -15,7 +15,6 @@ NoteController.listAll = function (req, res) {
     });
 };
 
-
 NoteController.listAllByTag = function (req, res) {
     NoteModel.find({}, function (err, notes) {
         if (err)
@@ -25,10 +24,37 @@ NoteController.listAllByTag = function (req, res) {
     });
 };
 
-
-
 NoteController.read = function (req, res) {
+    NoteService.read(req.params.id, function (err, note) {
+        if (err)
+            res.send(err);
+        else
+            res.json(note);
+    });
+};
+
+NoteController.create = function (req, res) {
+    NoteService.create(req.param.content, function(err, note){
+        if (err)
+            res.send(err);
+        else
+            res.json(note);
+    });
+
+};
+
+NoteController.update = function (req, res) {
+
     NoteModel.findById(req.params.id, function (err, note) {
+        if (err)
+            res.send(err);
+        else
+            res.json(note);
+    });
+};
+
+NoteController.remove = function (req, res) {
+    NoteService.remove(req.params.id, function (err, note) {
         if (err)
             res.send(err);
         else

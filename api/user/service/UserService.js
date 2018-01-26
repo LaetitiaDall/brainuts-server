@@ -43,19 +43,24 @@ class UserService {
     }
 
     login(name, password, cb){
+        console.log("login with", name, password);
+
         cb = helpers.checkCallback(cb);
-        UserModel.findOne({name: new RegExp(user.name, "i")},
+
+        UserModel.findOne({name: name},
             function (err, user) {
 
                 if (err)
                     return cb(err);
 
                 if (!user) {
-                    return cb("no user found", null);
+                    return cb(new Error("no user found"), null);
                 }
 
-                if (passwordHash.verify('password', user.password)){
+                if (passwordHash.verify(password, user.password)){
                     return cb(null, user);
+                }else{
+                    return cb(new Error("wrong login"));
                 }
 
             });
