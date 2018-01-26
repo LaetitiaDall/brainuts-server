@@ -31,6 +31,7 @@ class TagService {
         var self = this;
         var hashtags = content.match(/#(\w+)/g);
 
+        if (!hashtags) return;
         hashtags.forEach(function (tag) {
             console.log("found tag", tag);
             tag = tag.replace("#", '');
