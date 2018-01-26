@@ -23,7 +23,12 @@ class NoteService {
             if (err){
                 return cb(err);
             }
-            note.remove(cb);
+            if(note){
+                note.remove(cb);
+            }else{
+                cb(new Error("the note does not exists"));
+            }
+
         })
 
     }
