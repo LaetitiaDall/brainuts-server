@@ -27,6 +27,23 @@ class TagService {
 
     };
 
+
+    remove(id, cb){
+        helpers.checkCallback(cb);
+        TagModel.findById(id, function(err, note) {
+            if (err){
+                return cb(err);
+            }
+            if(note){
+                note.remove(cb);
+            }else{
+                cb(new Error("the tag was already deleted"));
+            }
+
+        })
+
+    }
+
     createAllTags(content) {
         var self = this;
         var hashtags = content.match(/#(\w+)/g);

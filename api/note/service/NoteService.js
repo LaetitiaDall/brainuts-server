@@ -37,7 +37,7 @@ class NoteService {
 
     }
 
-    update(id, content, cb) {
+    update(id, content, user, cb) {
         helpers.checkCallback(cb);
         return NoteModel.findById(id, function(err, note) {
             if (err){
@@ -48,6 +48,7 @@ class NoteService {
                 console.log("found", note);
                 note.content = content;
                 note.creationDate = new Date();
+                note.user = user;
                 note.save(cb);
             }else{
                 cb(new Error("the note does not exists and can not be updated"));

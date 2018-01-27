@@ -45,7 +45,7 @@ NoteController.create = function (req, res) {
 
 NoteController.update = function (req, res) {
     console.log("Updating", req.params.id);
-    NoteService.update(req.params.id, req.body.content, function (err, note) {
+    NoteService.update(req.params.id, req.body.content, req.user, function (err, note) {
         if (err)
             res.send(err);
         else

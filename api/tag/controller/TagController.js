@@ -14,6 +14,14 @@ TagController.listAll = function (req, res) {
     });
 };
 
-
+TagController.remove = function (req, res) {
+    console.log("Removing", req.params.id);
+    TagService.remove(req.params.id, function (err, tag) {
+        if (err)
+            res.status(500).send(err);
+        else
+            res.json(tag);
+    });
+};
 
 module.exports = TagController;
