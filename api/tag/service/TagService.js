@@ -2,16 +2,19 @@
 
 var mongoose = require('mongoose');
 var TagModel = mongoose.model('Tag');
-var NoteModel = mongoose.model('Note');
-
+var TagEvents = require('../event/TagEvents');
 var helpers = require('../../utils/helpers');
-var NoteService;
 
 class TagService {
 
+    /**
+     * Find all tags inside a content
+     * @param content
+     * @param cb
+     * @returns array list of tags
+     */
     findTagsOfContent(content, cb) {
-        let tagsInNote = [];
-
+        let tagsInContent = [];
         TagModel.find({}, function (err, tags) {
             if (err) {
                 return cb(err);
@@ -24,23 +27,25 @@ class TagService {
 
                     // Check if tag exist in content
                     if (content.indexOf(tag.name.toLowerCase()) >= 0) {
-                        tagsInNote.push(tag);
+                        tagsInContent.push(tag);
                         continue;
                     }
 
                     // Check if aliases of tag exists in content
-                    for (a = 0; a < tag.alias.length; a++) {
-                        alias = tag.alias[a];
+                    let aliasArray = tag.alias.split(',');
+                    for (a = 0; a < aliasArray.length; a++) {
+                        alias = tag.alias[a].trim();
+                        if (!alias) continue;
 
                         if (content.indexOf(alias.toLowerCase()) >= 0) {
-                            tagsInNote.push(tag);
+                            tagsInContent.push(tag);
                             break;
                         }
                     }
 
                 }
 
-                return cb(null, tagsInNote);
+                return cb(null, tagsInContent);
 
 
             } else {
@@ -51,6 +56,21 @@ class TagService {
 
     };
 
+    /**
+     * Create all tags found in content if they don't exists
+     * @param content
+     */
+    createAllTags(content) {
+        const self = this;
+        var hashtags = content.match(/#(\w+)/g);
+
+        if (!hashtags) return;
+        hashtags.forEach(function (tagname) {
+            tagname = tagname.replace("#", '');
+            self.create(tagname, helpers.intToRGB(helpers.hashCode(tagname)));
+        });
+    }
+
     simplifyTagName(name) {
         name = helpers.replaceAccents(name);
         name = helpers.replaceSpecialChars(name, "");
@@ -58,21 +78,22 @@ class TagService {
     }
 
     findByName(name, cb) {
-        return TagModel.findByName(name, cb).populate('notes').populate('notes.user');
+        return TagModel.findByName(name, cb);
     }
 
     create(name, color, cb) {
         const self = this;
         cb = helpers.checkCallback(cb);
 
-        TagModel.findByName(name, function (err, tag) {
+        TagModel.findByName(name, (err, tag) => {
             if (err) {
                 return cb(err)
             }
             if (tag) {
                 return cb(new Error("Tag already exists"));
             } else {
-                console.log("creating tag", name, color);
+
+                console.log("Creating tag :", name);
 
                 var tag = new TagModel({
                     name: self.simplifyTagName(name),
@@ -80,42 +101,35 @@ class TagService {
                     alias: []
                 });
 
-                tag.save(function (err, tag) {
-                    if (err) {
+                tag.save((err, tag) => {
+                    if (err)
                         return cb(err);
+                    else {
+                        TagEvents.notifyTagChanged(tag);
+                        return cb(null, tag);
                     }
-                    NoteService.linkNotesToThisTag(tag);
-                    return cb(null, tag);
                 });
-
-
             }
         });
     };
 
     update(id, data, cb) {
-        const self = this;
-        helpers.checkCallback(cb);
+        cb = helpers.checkCallback(cb);
         return TagModel.findById(id, function (err, tag) {
             if (err) {
                 return cb(err);
             }
-
-            // First, remove all tags from notes
-            NoteService.removeTagFromNotes(id);
-
             if (tag) {
                 tag.alias = data.alias;
                 tag.name = data.name;
                 tag.color = data.color;
-
-                NoteService.findNotesForTag(tag, function (err, notes) {
-                    if (err) {
-                        return cb(err)
+                tag.save(function (err, tag) {
+                    if (err) return cb(err);
+                    else {
+                        TagEvents.notifyTagChanged(tag, (err, tag) => {
+                            return cb(null, tag);
+                        });
                     }
-                    tag.notes = notes;
-                    return tag.save(cb);
-
                 });
 
             } else {
@@ -143,18 +157,7 @@ class TagService {
         return TagModel.findById(id, cb);
     }
 
-    createAllTags(content) {
-        const self = this;
-        var hashtags = content.match(/#(\w+)/g);
 
-        if (!hashtags) return;
-        hashtags.forEach(function (tagname) {
-            tagname = tagname.replace("#", '');
-            self.create(tagname, helpers.intToRGB(helpers.hashCode(tagname)));
-        });
-    }
 }
 
 module.exports = new TagService();
-
-NoteService = require('../../note/service/NoteService');

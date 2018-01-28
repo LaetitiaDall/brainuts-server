@@ -12,9 +12,13 @@ var TagSchema = new Schema({
             type: String
         },
 
-        alias: [{
+        alias: {
             type: String
-        }],
+        },
+
+        refCount: {
+            type: Number
+        }
 
     }, {
         usePushEach: true

@@ -1,8 +1,8 @@
 'use strict';
 const TokenService = require('../../auth/TokenService');
+const TagController = require('../controller/TagController');
 
-var TagRoutes = function (app) {
-    var TagController = require('../controller/TagController');
+module.exports = function (app) {
 
     app.route('/tags')
         .get(TokenService.ensureAuthorized, TagController.listAll);
@@ -14,5 +14,3 @@ var TagRoutes = function (app) {
 
 
 };
-
-module.exports = TagRoutes;
