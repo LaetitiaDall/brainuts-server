@@ -14,8 +14,26 @@ TagController.listAll = function (req, res) {
     });
 };
 
+TagController.read = function (req, res) {
+    TagService.read(req.params.id, function (err, note) {
+        if (err)
+            res.status(500).send(err);
+        else
+            res.json(note);
+    });
+};
+
+
+TagController.update = function (req, res) {
+    TagService.update(req.params.id, req.body, function (err, note) {
+        if (err)
+            res.send(err);
+        else
+            res.json(note);
+    });
+};
+
 TagController.remove = function (req, res) {
-    console.log("Removing", req.params.id);
     TagService.remove(req.params.id, function (err, tag) {
         if (err)
             res.status(500).send(err);

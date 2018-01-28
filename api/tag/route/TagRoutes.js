@@ -7,6 +7,12 @@ var TagRoutes = function (app) {
     app.route('/tags')
         .get(TokenService.ensureAuthorized, TagController.listAll);
 
+    app.route('/tags/:id')
+        .get(TokenService.ensureAuthorized, TagController.read)
+        .put(TokenService.ensureAuthorized, TagController.update)
+        .delete(TokenService.ensureAuthorized, TagController.remove);
+
+
 };
 
 module.exports = TagRoutes;

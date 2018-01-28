@@ -3,25 +3,27 @@
 var mongoose = require('mongoose');
 var NoteModel = mongoose.model('Note');
 var NoteService = require('../service/NoteService');
+var TagService = require('../../tag/service/TagService');
 
 var NoteController = {};
 
 NoteController.listAll = function (req, res) {
-    NoteModel.find({}, function (err, notes) {
+    NoteService.findAllNotes(function (err, notes) {
         if (err)
             res.status(500).send(err);
         else
             res.json(notes);
-    }).populate('user').sort('-creationDate');
+    })
 };
 
 NoteController.listAllByTag = function (req, res) {
-    NoteModel.find({}, function (err, notes) {
+    TagService.findByName(req.param.tagName, function(err, tag){
         if (err)
-            res.status(500).send(err);
+            return res.status(500).send(err);
         else
-            res.json(notes);
+            return res.json(tag.notes);
     });
+
 };
 
 NoteController.read = function (req, res) {
@@ -44,7 +46,6 @@ NoteController.create = function (req, res) {
 };
 
 NoteController.update = function (req, res) {
-    console.log("Updating", req.params.id);
     NoteService.update(req.params.id, req.body.content, req.user, function (err, note) {
         if (err)
             res.send(err);
@@ -54,7 +55,6 @@ NoteController.update = function (req, res) {
 };
 
 NoteController.remove = function (req, res) {
-    console.log("Removing", req.params.id);
     NoteService.remove(req.params.id, function (err, note) {
         if (err)
             res.status(500).send(err);

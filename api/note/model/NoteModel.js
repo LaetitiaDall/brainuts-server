@@ -15,6 +15,10 @@ var NoteSchema = new Schema({
 
     user: {type: mongoose.Schema.Types.ObjectId, ref: 'User'},
 
+    tags: [{type: mongoose.Schema.ObjectId, ref: 'Tag'}]
+
+}, {
+    usePushEach: true
 });
 
 class NoteClass {
