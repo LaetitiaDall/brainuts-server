@@ -5,15 +5,70 @@ var NoteModel = mongoose.model('Note');
 var helpers = require('../../utils/helpers');
 var TagService = require('../../tag/service/TagService');
 var TagEvents = require('../../tag/event/TagEvents');
+var asy = require('async');
 
 class NoteService {
 
     constructor() {
         const self = this;
-        TagEvents.onTagChanged((tag, cb) => {
+
+        TagEvents.onTagUpdated((tag, cb) => {
             // When a tag change, must set all notes related.
-            self.linkNotesToThisTag(tag, cb)
+            asy.waterfall(
+                [
+                    function (next) {
+                        self.removeTagFromNotes(tag, next)
+                    },
+                    function (tag, next) {
+                        self.linkNotesToThisTag(tag, next);
+                    },
+                ],
+                function (err, tag) {
+                    return cb(err, tag);
+                }
+            );
+
         });
+
+        TagEvents.onTagCreated((tag, cb) => {
+            // When a tag change, must set all notes related.
+            asy.waterfall(
+                [
+                    function (next) {
+                        self.removeTagFromNotes(tag, next)
+                    },
+                    function (tag, next) {
+                        self.linkNotesToThisTag(tag, next);
+                    },
+                ],
+                function (err, tag) {
+                    return cb(err, tag);
+                }
+            );
+        });
+
+        TagEvents.onTagRemoved((tag, cb) => {
+            // When a tag change, must set all notes related.
+            self.removeTagFromNotes(tag, cb)
+        });
+    }
+
+    removeTagFromNotes(tag, cb) {
+        cb = helpers.checkCallback(cb);
+        NoteModel.update(
+            {},
+            {"$pull": {"tags": tag._id}},
+            {"multi": true},
+            function (err, numberAffected) {
+                if (err) {
+                    console.log(err);
+                    return cb(err);
+                } else {
+                    console.log("Tag change affected notes", numberAffected);
+                    return cb(null, tag);
+                }
+            }
+        );
     }
 
     linkNotesToThisTag(tag, cb) {
@@ -24,7 +79,7 @@ class NoteService {
             console.log("Found " + notes.length + " related to #" + tag.name);
             tag.refCount = notes.length;
             tag.save((err, tag) => {
-                if (err){
+                if (err) {
                     return cb(err);
                 }
                 notes.forEach(note => {
@@ -79,8 +134,9 @@ class NoteService {
                     // Check if aliases of tag exists in content
                     var aliasArray = tag.alias.split(',');
                     for (a = 0; a < aliasArray.length; a++) {
-                        alias = aliasArray[a].trim();
+                        alias = aliasArray[a];
                         if (!alias) continue;
+                        alias = alias.trim();
 
                         if (content.indexOf(alias.toLowerCase()) >= 0) {
                             finalList.push(note);
@@ -110,24 +166,34 @@ class NoteService {
     create(content, user, cb) {
         var self = this;
 
-        helpers.checkCallback(cb);
+        cb = helpers.checkCallback(cb);
 
-        TagService.createAllTags(content);
-
-        var note = new NoteModel({
-            content: content,
-            user: user,
-            creationDate: new Date(),
-            tags: []
-        });
-
-        TagService.findTagsOfContent(self.simplifyNoteContent(content), function (err, tags) {
-            if (err) {
+        TagService.createAllTagsOfContent(content, function (err) {
+            if (err)
                 return cb(err);
-            }
 
-            note.tags = tags;
-            return note.save(cb);
+            var note = new NoteModel({
+                content: content,
+                user: user,
+                creationDate: new Date(),
+                tags: []
+            });
+
+            TagService.findExistingTagsInContent(self.simplifyNoteContent(content), function (err, tags) {
+
+                if (err) {
+                    return cb(err);
+                }
+                note.tags = tags;
+
+                TagService.changeTagsRefCount(note.tags, 1, (err) => {
+                    if (err)
+                        return cb(err);
+                    return note.save(cb);
+                });
+
+            });
+
         });
 
     };
@@ -139,7 +205,11 @@ class NoteService {
                 return cb(err);
             }
             if (note) {
-                note.remove(cb);
+                TagService.changeTagsRefCount(note.tags, -1, (err) => {
+                    if (err)
+                        return cb(err);
+                    return note.remove(cb);
+                });
             } else {
                 cb(new Error("the note was already deleted"));
             }
@@ -151,24 +221,45 @@ class NoteService {
     update(id, content, user, cb) {
         const self = this;
         helpers.checkCallback(cb);
+
         return NoteModel.findById(id, function (err, note) {
             if (err) {
                 return cb(err);
             }
 
             if (note) {
-                TagService.createAllTags(content);
-                note.content = content;
-                note.creationDate = new Date();
-                note.user = user;
-                TagService.findTagsOfContent(self.simplifyNoteContent(content), function (err, tags) {
-                    if (err) {
+                TagService.changeTagsRefCount(note.tags, -1, (err) => {
+                    if (err)
                         return cb(err);
-                    }
 
-                    note.tags = tags;
-                    note.save(cb);
+                    TagService.createAllTagsOfContent(content, function (err) {
+                        if (err)
+                            return cb(err);
+
+                        note.content = content;
+                        note.creationDate = new Date();
+                        note.user = user;
+
+                        TagService.findExistingTagsInContent(self.simplifyNoteContent(content), function (err, tags) {
+                            if (err) {
+                                return cb(err);
+                            }
+                            note.tags = tags;
+
+                            TagService.changeTagsRefCount(note.tags, 1, (err) => {
+                                if (err)
+                                    return cb(err);
+
+                                note.save(cb);
+                            });
+
+
+                        });
+
+                    });
+
                 });
+
 
             } else {
                 cb(new Error("the note does not exists and can not be updated"));

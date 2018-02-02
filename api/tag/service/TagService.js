@@ -4,6 +4,7 @@ var mongoose = require('mongoose');
 var TagModel = mongoose.model('Tag');
 var TagEvents = require('../event/TagEvents');
 var helpers = require('../../utils/helpers');
+var asy = require('async');
 
 class TagService {
 
@@ -13,7 +14,7 @@ class TagService {
      * @param cb
      * @returns array list of tags
      */
-    findTagsOfContent(content, cb) {
+    findExistingTagsInContent(content, cb) {
         let tagsInContent = [];
         TagModel.find({}, function (err, tags) {
             if (err) {
@@ -34,8 +35,9 @@ class TagService {
                     // Check if aliases of tag exists in content
                     let aliasArray = tag.alias.split(',');
                     for (a = 0; a < aliasArray.length; a++) {
-                        alias = tag.alias[a].trim();
+                        alias = tag.alias[a];
                         if (!alias) continue;
+                        alias = alias.trim();
 
                         if (content.indexOf(alias.toLowerCase()) >= 0) {
                             tagsInContent.push(tag);
@@ -60,15 +62,38 @@ class TagService {
      * Create all tags found in content if they don't exists
      * @param content
      */
-    createAllTags(content) {
+    createAllTagsOfContent(content, cb) {
+
         const self = this;
+
+        cb = helpers.checkCallback(cb);
+
         var hashtags = content.match(/#(\w+)/g);
 
-        if (!hashtags) return;
-        hashtags.forEach(function (tagname) {
+        if (!hashtags)
+            return cb(null);
+
+        asy.each(hashtags, (tagname, next) => {
             tagname = tagname.replace("#", '');
-            self.create(tagname, helpers.intToRGB(helpers.hashCode(tagname)));
+            self.create(tagname, helpers.intToRGB(helpers.hashCode(tagname)), next);
+        }, function (err) {
+            return cb(err);
         });
+
+    }
+
+    changeTagsRefCount(tags, val, cb) {
+        asy.each(tags, (tag, cb) => {
+            return this.changeTagRefCount(tag, val, cb)
+        }, function (err) {
+            return cb(err);
+        });
+    }
+
+    changeTagRefCount(tag, val, cb) {
+        cb = helpers.checkCallback(cb);
+        tag.refCount += val;
+        return tag.save(cb);
     }
 
     simplifyTagName(name) {
@@ -90,7 +115,7 @@ class TagService {
                 return cb(err)
             }
             if (tag) {
-                return cb(new Error("Tag already exists"));
+                return cb(null, tag);
             } else {
 
                 console.log("Creating tag :", name);
@@ -105,8 +130,7 @@ class TagService {
                     if (err)
                         return cb(err);
                     else {
-                        TagEvents.notifyTagChanged(tag);
-                        return cb(null, tag);
+                        return TagEvents.notifyTagCreated(tag, cb);
                     }
                 });
             }
@@ -126,9 +150,7 @@ class TagService {
                 tag.save(function (err, tag) {
                     if (err) return cb(err);
                     else {
-                        TagEvents.notifyTagChanged(tag, (err, tag) => {
-                            return cb(null, tag);
-                        });
+                        return TagEvents.notifyTagUpdated(tag, cb);
                     }
                 });
 
@@ -146,7 +168,15 @@ class TagService {
                 return cb(err);
             }
             if (tag) {
-                tag.remove(cb);
+                tag.remove((err) => {
+                    if (err) {
+                        return cb(err);
+                    }
+                    else {
+                        return TagEvents.notifyTagRemoved(tag, cb);
+                    }
+                });
+
             } else {
                 cb(new Error("the tag was already deleted"));
             }

@@ -24,11 +24,11 @@ var NoteSchema = new Schema({
 class NoteClass {
 
     static findByTag(tag, cb) {
-        return this.find({'content': tag}, cb);
+        return this.find({'tags': tag}, cb);
     }
 
     static findById(id, cb) {
-        return this.findOne({'_id': id}, cb);
+        return this.findOne({'_id': id}, cb).populate('tags');
     }
 
 }
