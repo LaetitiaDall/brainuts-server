@@ -73,7 +73,6 @@ class NoteService {
 
     linkNotesToThisTag(tag, cb) {
         var self = this;
-        cb = helpers.checkCallback(cb);
         self.searchNotesForTag(tag, (err, notes) => {
             if (err) return cb(err);
             console.log("Found " + notes.length + " related to #" + tag.name);
@@ -113,51 +112,37 @@ class NoteService {
      */
     searchNotesForTag(tag, cb) {
         var self = this;
-        let finalList = [];
+
+        asy.waterfall([
+            (next) => {
+                return NoteModel.find({}, next);
+            },
+            (notes, next) => {
+                let finalList = [];
+                let note, i;
+                for (i = 0; i < notes.length; i++) {
+                    note = notes[i];
+                    if (TagService.isTagInContent(tag, self.simplifyNoteContent(note.content))) {
+                        finalList.push(note);
+                    }
+                }
+                return next(null, finalList);
+            }
+
+        ], cb);
+
         NoteModel.find({}, function (err, notes) {
             if (err) {
                 return cb(err);
             }
 
-            if (notes) {
-                let note, alias, i, a;
-                for (i = 0; i < notes.length; i++) {
-                    note = notes[i];
-                    let content = self.simplifyNoteContent(note.content);
 
-                    // Check if tag exist in content
-                    if (content.indexOf(tag.name.toLowerCase()) >= 0) {
-                        finalList.push(note);
-                        continue;
-                    }
-
-                    // Check if aliases of tag exists in content
-                    var aliasArray = tag.alias.split(',');
-                    for (a = 0; a < aliasArray.length; a++) {
-                        alias = aliasArray[a];
-                        if (!alias) continue;
-                        alias = alias.trim();
-
-                        if (content.indexOf(alias.toLowerCase()) >= 0) {
-                            finalList.push(note);
-                            break;
-                        }
-                    }
-
-                }
-
-                return cb(null, finalList);
-
-
-            } else {
-                return cb(null, []);
-            }
 
         }).populate('tags');
     };
 
     findAllByTag(tagName, cb) {
-        TagService.findByName(tagName, (err, tag) => {
+        return TagService.findByName(tagName, (err, tag) => {
             if (err) return cb(err);
             NoteModel.find({'tags': tag}, cb);
         });
@@ -166,106 +151,97 @@ class NoteService {
     create(content, user, cb) {
         var self = this;
 
-        cb = helpers.checkCallback(cb);
-
-        TagService.createAllTagsOfContent(content, function (err) {
-            if (err)
-                return cb(err);
-
-            var note = new NoteModel({
-                content: content,
-                user: user,
-                creationDate: new Date(),
-                tags: []
-            });
-
-            TagService.findExistingTagsInContent(self.simplifyNoteContent(content), function (err, tags) {
-
-                if (err) {
-                    return cb(err);
-                }
-                note.tags = tags;
-
-                TagService.changeTagsRefCount(note.tags, 1, (err) => {
-                    if (err)
-                        return cb(err);
-                    return note.save(cb);
-                });
-
-            });
-
-        });
+        return asy.waterfall(
+            [
+                function (next) {
+                    TagService.createAllTagsOfContent(content, next)
+                },
+                function (next) {
+                    TagService.findExistingTagsInContent(self.simplifyNoteContent(content), next)
+                },
+                function (tags, next) {
+                    TagService.changeTagsRefCount(tags, 1, next)
+                },
+                function (tags, next) {
+                    var note = new NoteModel({
+                        content: content,
+                        user: user,
+                        creationDate: new Date(),
+                        tags: tags
+                    });
+                    note.save(next)
+                },
+            ],
+            cb
+        );
 
     };
 
     remove(id, cb) {
-        helpers.checkCallback(cb);
-        NoteModel.findById(id, function (err, note) {
-            if (err) {
-                return cb(err);
-            }
-            if (note) {
-                TagService.changeTagsRefCount(note.tags, -1, (err) => {
-                    if (err)
-                        return cb(err);
-                    return note.remove(cb);
-                });
-            } else {
-                cb(new Error("the note was already deleted"));
-            }
+        return asy.waterfall([
+                (next) => {
+                    return NoteModel.findById(id, next)
+                },
+                (note, next) => {
 
-        })
+                    if (!note) {
+                        return next(new Error("the note was already deleted"));
+                    }
+
+                    return note.remove((err) => {
+                        return next(err, note)
+                    });
+
+                },
+                (note, next) => {
+                    return TagService.changeTagsRefCount(note.tags, -1, (err) => {
+                        return next(err, note);
+                    })
+                }
+            ]
+            , cb);
 
     }
 
     update(id, content, user, cb) {
         const self = this;
-        helpers.checkCallback(cb);
 
-        return NoteModel.findById(id, function (err, note) {
-            if (err) {
-                return cb(err);
-            }
-
-            if (note) {
-                TagService.changeTagsRefCount(note.tags, -1, (err) => {
-                    if (err)
-                        return cb(err);
-
-                    TagService.createAllTagsOfContent(content, function (err) {
-                        if (err)
-                            return cb(err);
-
-                        note.content = content;
-                        note.creationDate = new Date();
-                        note.user = user;
-
-                        TagService.findExistingTagsInContent(self.simplifyNoteContent(content), function (err, tags) {
-                            if (err) {
-                                return cb(err);
-                            }
-                            note.tags = tags;
-
-                            TagService.changeTagsRefCount(note.tags, 1, (err) => {
-                                if (err)
-                                    return cb(err);
-
-                                note.save(cb);
-                            });
-
-
-                        });
-
-                    });
-
+        return asy.waterfall([
+            (next) => {
+                return NoteModel.findById(id, next)
+            },
+            (note, next) => {
+                if (!note) {
+                    return next(new Error("the note does not exists and can not be updated"));
+                }
+                return TagService.changeTagsRefCount(note.tags, -1, (err) => {
+                    return next(err, note);
+                })
+            },
+            (note, next) => {
+                return TagService.createAllTagsOfContent(content, (err) => {
+                    return next(err, note);
+                })
+            },
+            (note, next) => {
+                return TagService.findExistingTagsInContent(self.simplifyNoteContent(content), (err, tags) => {
+                    return next(err, note, tags);
+                })
+            },
+            (note, tags, next) => {
+                return TagService.changeTagsRefCount(note.tags, 1, (err) => {
+                    return next(err, note, tags);
                 });
-
-
-            } else {
-                cb(new Error("the note does not exists and can not be updated"));
+            },
+            (note, tags, next) => {
+                note.content = content;
+                note.creationDate = new Date();
+                note.user = user;
+                note.tags = tags;
+                note.save(next);
             }
 
-        })
+        ], cb)
     }
 
     read(id, content, cb) {

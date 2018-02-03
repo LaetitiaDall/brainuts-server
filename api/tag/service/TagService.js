@@ -9,53 +9,58 @@ var asy = require('async');
 class TagService {
 
     /**
+     * Given a content string, return true if the tag is inside (checks tag and aliases)
+     * @param tag
+     * @param content
+     * @returns {boolean}
+     */
+    isTagInContent(tag, content) {
+        content = ' ' + content.trim() + ' ';
+        var name = ' ' + tag.name.toLowerCase() + ' ';
+
+        // Check if tag exist in content
+        if (content.indexOf(name) >= 0) {
+            return true;
+        }
+
+        // Check if aliases of tag exists in content
+        let a, alias;
+        let aliasArray = tag.alias.split(',');
+        for (a = 0; a < aliasArray.length; a++) {
+            alias = aliasArray[a];
+            if (!alias) continue;
+            alias = ' ' + alias.trim().toLowerCase() + ' ';
+            if (content.indexOf(alias) >= 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * Find all tags inside a content
      * @param content
      * @param cb
      * @returns array list of tags
      */
     findExistingTagsInContent(content, cb) {
+        var self = this;
         let tagsInContent = [];
         TagModel.find({}, function (err, tags) {
             if (err) {
                 return cb(err);
             }
+            tags = tags || [];
 
-            if (tags) {
-                let tag, alias, i, a;
-                for (i = 0; i < tags.length; i++) {
-                    tag = tags[i];
-
-                    // Check if tag exist in content
-                    if (content.indexOf(tag.name.toLowerCase()) >= 0) {
-                        tagsInContent.push(tag);
-                        continue;
-                    }
-
-                    // Check if aliases of tag exists in content
-                    let aliasArray = tag.alias.split(',');
-                    for (a = 0; a < aliasArray.length; a++) {
-                        alias = tag.alias[a];
-                        if (!alias) continue;
-                        alias = alias.trim();
-
-                        if (content.indexOf(alias.toLowerCase()) >= 0) {
-                            tagsInContent.push(tag);
-                            break;
-                        }
-                    }
-
+            let tag, i;
+            for (i = 0; i < tags.length; i++) {
+                tag = tags[i];
+                if (self.isTagInContent(tag, content)) {
+                    tagsInContent.push(tag);
                 }
-
-                return cb(null, tagsInContent);
-
-
-            } else {
-                return cb(null, []);
             }
-
+            return cb(null, tagsInContent);
         });
-
     };
 
     /**
@@ -63,7 +68,6 @@ class TagService {
      * @param content
      */
     createAllTagsOfContent(content, cb) {
-
         const self = this;
 
         cb = helpers.checkCallback(cb);
@@ -86,12 +90,11 @@ class TagService {
         asy.each(tags, (tag, cb) => {
             return this.changeTagRefCount(tag, val, cb)
         }, function (err) {
-            return cb(err);
+            return cb(err, tags);
         });
     }
 
     changeTagRefCount(tag, val, cb) {
-        cb = helpers.checkCallback(cb);
         tag.refCount += val;
         return tag.save(cb);
     }
@@ -108,79 +111,67 @@ class TagService {
 
     create(name, color, cb) {
         const self = this;
-        cb = helpers.checkCallback(cb);
-
-        TagModel.findByName(name, (err, tag) => {
-            if (err) {
-                return cb(err)
+        return asy.waterfall([
+            (next) => {
+                return TagModel.findByName(name, next)
+            },
+            (tag, next) => {
+                if (tag) {
+                    return next(null, tag);
+                } else {
+                    var tag = new TagModel({
+                        name: self.simplifyTagName(name),
+                        color: color,
+                        alias: []
+                    });
+                    return tag.save(next);
+                }
+            },
+            (tag, lines, next) => {
+                return TagEvents.notifyTagCreated(tag, next);
             }
-            if (tag) {
-                return cb(null, tag);
-            } else {
+        ], cb);
 
-                console.log("Creating tag :", name);
-
-                var tag = new TagModel({
-                    name: self.simplifyTagName(name),
-                    color: color,
-                    alias: []
-                });
-
-                tag.save((err, tag) => {
-                    if (err)
-                        return cb(err);
-                    else {
-                        return TagEvents.notifyTagCreated(tag, cb);
-                    }
-                });
-            }
-        });
-    };
+    }
 
     update(id, data, cb) {
-        cb = helpers.checkCallback(cb);
-        return TagModel.findById(id, function (err, tag) {
-            if (err) {
-                return cb(err);
-            }
-            if (tag) {
+        return asy.waterfall([
+            (next) => {
+                return TagModel.findById(id, next);
+            },
+            (tag, next) => {
+                if (!tag) {
+                    return next(new Error("the tag does not exists and can not be updated"));
+                }
                 tag.alias = data.alias;
                 tag.name = data.name;
                 tag.color = data.color;
-                tag.save(function (err, tag) {
-                    if (err) return cb(err);
-                    else {
-                        return TagEvents.notifyTagUpdated(tag, cb);
-                    }
-                });
-
-            } else {
-                cb(new Error("the tag does not exists and can not be updated"));
+                return tag.save(next);
+            },
+            (tag, lines, next) => {
+                return TagEvents.notifyTagUpdated(tag, next);
             }
-
-        })
+        ], cb);
     }
 
     remove(id, cb) {
-        cb = helpers.checkCallback(cb);
-        TagModel.findById(id, function (err, tag) {
-            if (err) {
-                return cb(err);
+        return asy.waterfall([
+            (next) => {
+                return TagModel.findById(id, next);
+            },
+            (tag, next) => {
+                if (!tag) {
+                    return next(new Error("the tag was already deleted"));
+                }
+                return tag.remove((err) => {
+                    return next(err, tag);
+                })
+            },
+            (tag, next) => {
+                return TagEvents.notifyTagRemoved(tag, next);
             }
-            if (tag) {
-                tag.remove((err) => {
-                    if (err) {
-                        return cb(err);
-                    }
-                    else {
-                        return TagEvents.notifyTagRemoved(tag, cb);
-                    }
-                });
 
-            } else {
-                cb(new Error("the tag was already deleted"));
-            }
-        })
+        ], cb);
     }
 
     read(id, content, cb) {

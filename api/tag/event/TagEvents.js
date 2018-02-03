@@ -4,8 +4,6 @@ var helpers = require('../../utils/helpers');
 class TagEvents extends AsyncEventEmitter {
 
     notifyTagUpdated(tag, cb){
-        console.log("NotifyTagUpdated.", tag.name);
-        cb = helpers.checkCallback(cb);
         if (!this.listenerCount('tagUpdated')){
             return cb(null, tag);
         }
@@ -19,9 +17,6 @@ class TagEvents extends AsyncEventEmitter {
     }
 
     notifyTagRemoved(tag, cb){
-        console.log("NotifyTagRemoved.", tag.name);
-
-        cb = helpers.checkCallback(cb);
         if (!this.listenerCount('tagRemoved')){
             return cb(null, tag);
         }
@@ -35,8 +30,6 @@ class TagEvents extends AsyncEventEmitter {
     }
 
     notifyTagCreated(tag, cb){
-        console.log("NotifyTagCreated.", tag.name);
-
         cb = helpers.checkCallback(cb);
         if (!this.listenerCount('tagCreated')){
             return cb(null, tag);
